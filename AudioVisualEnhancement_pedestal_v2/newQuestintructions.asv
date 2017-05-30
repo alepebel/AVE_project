@@ -1,0 +1,34 @@
+try
+
+    
+    Screen('FillRect', win, gray);
+    Screen('TextSize',  win, 25);
+    linesep = 2;
+    max_n_ofcharperline = 90;
+
+    
+    title= ['VISUAL DISCRIMINATION TASK'];
+    DrawFormattedText(win,title , 'center', hMid-260, [0,200,0], max_n_ofcharperline,0,0,linesep);
+     
+    Screen('TextSize',  win, 18);
+    firstext = ['In this experiment you have to discriminate a noisy vertical grating from pure noise. ', ...
+        'At the beginning of each trial, you will see a red small circle where you have to fixate your gaze during the experiment. ',...
+        'Then, for a very brief period of time you will see a big circular noise patch containing either a dim grating blurred with visual noise or only visual noise. ',... 
+        'After the stimulus presentation, the red fixation point will turn blue. This is your time to report what you perceived in the visual patch:',...
+        'Use "W" if you detected a grating and "S" if you only saw noise. ',...
+        'At the end of each trial you will receive feedback about your performance ',...
+        '(green = correct, red = incorrect, white = not response). Do not forget to keep your eyes at the red fixation point during the trials'];
+    
+    DrawFormattedText(win,firstext , 'center', hMid-200, white, max_n_ofcharperline,0,0,linesep);
+    
+    Screen('TextSize',  win, 18);
+    secondtext = ['REMEMBER: Use "W" if you detected a grating and "S" if you did not.' ];
+    DrawFormattedText(win,secondtext , 'center', hMid+140, [255,0,0], max_n_ofcharperline,0,0,linesep);
+    
+    thirdtext = ['Press the spacebar to continue.' ];
+    Screen('TextSize',  win, 16);
+    DrawFormattedText(win,thirdtext , 'center', hMid+180, black, max_n_ofcharperline,0,0,linesep);
+    
+    %printﬂ
+    Screen(win,'Flip');
+end
