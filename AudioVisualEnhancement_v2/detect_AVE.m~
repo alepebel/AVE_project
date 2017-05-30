@@ -1,0 +1,687 @@
+function detect_AVE(task)
+
+% Main experiment. Use contrast from quest to adjust stimulus to threshold
+% level. This function precreates gabor patches with particular
+% characteristics and calculate their energy for each orientation.
+% Provide feedback Use detect_AVE('demo') for demo or detect_AVE('Exp') for
+% experiment
+
+%clear;
+tic
+%% Switch to Screen('Preference', 'SkipSyncTests', 1) if trouble starting program
+%initimeexp = GetSecs; % get time to measure the total lenght of the experiment
+%% Set current directory
+%path = '/Volumes/ALEX_EXT/Experimentos/DondersExperiments' %
+path = mfilename('fullpath'); % Finds current location of file
+[pathstr] = fileparts(path); % Removes file information, saves directory
+path = pathstr;
+
+%% Collect subject info
+
+% universal file separator across operative systems is filesep
+
+if strcmp(task, 'demo')
+    prompt = {'Contrast(0.1):'};
+    input = inputdlg(prompt);
+    initials = task; % Collect subject initials
+    contrast = input{1};
+    contrast = str2num(contrast);
+    
+else
+    prompt = {'Enter subject initials: ', 'Guess contrast(0.1):'};
+    input = inputdlg(prompt);
+    initials = input{1}; % Collect subject initials REMEMBER ATACCH ALL THE
+    contrast = input{2};
+    contrast = str2num(contrast);
+end
+
+outputFolder = [path, filesep 'results' filesep ,initials,filesep];
+
+if ~exist(outputFolder, 'file')
+    
+dataFile = [outputFolder initials,'_AVE_detect.mat'];
+
+end
+
+dataFile = [initials,'_AVE_detect.mat'];
+
+if exist(dataFile, 'file')
+    disp('This subject has been already tested, checking session');
+    load(dataFile);
+    n_sessions_runned = length(Experimentalsession);
+    uiwait(msgbox(['Session tested previously = ', num2str(n_sessions_runned)],'modal'));
+
+end
+
+if  ~strcmp(task, 'demo')
+    % SELECTING SESSION AND CHECKING THAT HAS NOT BEEN TESTED ALREADY
+    prompt = {'Enter session: '};
+    input = inputdlg(prompt);
+    session = input{1};
+    session = str2num(session);
+    choice = [];
+    
+    if exist(dataFile, 'file') %
+        
+        if sum([1:n_sessions_runned] == session)
+            choice = questdlg('Session tested previously. Do you want to overwrite?', ...
+                'Yes', 'No');
+        end
+        
+        if strcmp(choice,'No')
+            clear;
+            % disp('Avoiding overwritting data. Session stops')
+            error('Avoiding overwritting data. Session stops');
+        end        
+    end
+else
+    session = 1; % fill with 1 the session number just to not leave the field empty
+end
+
+% folder to save the raw images
+imgFile = [path, filesep 'results' filesep 'imgfiles' filesep initials,'/'];
+
+if ~exist(imgFile,'dir')
+    mkdir(imgFile);
+end
+
+rawimg_fname = ['IMG_run_',num2str(session),'.mat']
+
+if session == 1 & ~strcmp(task, 'demo') % only ask for these data in the first session of the main experiment
+    prompt = {'Enter Age: ','Enter Gender(M/F): '};
+    input = inputdlg(prompt);
+    Age = input{1};
+    Gender = input{2};
+    Experimentalsession(session).Age = Age;
+    Experimentalsession(session).Gender = Gender;       
+end
+
+    
+Experimentalsession(session).initials = initials;
+Experimentalsession(session).session = session;
+Experimentalsession(session).date = date;
+
+
+% creating the  subject file;
+save(dataFile,'Experimentalsession');
+
+
+init_AVE_parameters;
+
+detect = init;
+% If MAC, select the external device
+%[keyboardIndices, productNames] = GetKeyboardIndices
+%deviceNumber = 2;
+
+% PREPARING STIMULI COMBINATIONS
+
+reps =  25;
+
+if strcmp(task, 'demo')
+reps =  5;
+end
+
+detect.orientations = [90]; % degrees of possible gabor pathces
+%detect.pre_cue = [90 90 315 45]; %orientation to be reported
+%detect.post_cue = [315 45 315 45]; %orientation to be reported
+
+% in the informative trials, the orientation is determined by the
+detect.stim_conditions = {'noise','signal'};
+%detect.combination_conditions = {'A_irrel_CCW','A_irrel_CW','A_rel_CCW','A_rel_CW'};
+detect.modality_conditions = {'V','AV'};
+% init parameters for the 1st pre adaptation test phase
+[stim_rand_order,stim_combinations] = combinator([length(detect.stim_conditions),length(detect.modality_conditions)],reps);
+%randomize order
+stim_combinations = stim_combinations(stim_rand_order,:);
+
+
+detect.stim_combinations = stim_combinations;
+detect.repetitions = reps;
+detect.nTrials = length(stim_combinations);
+
+
+%% Experiment timings
+for t_idx = 1:detect.nTrials % consider randomizing a littlebit the ITI in each trial
+    detect.TRIAL_TIMES(t_idx) = detect.INIT_DELAY +...
+        (t_idx-1)*(detect.FIXATION + detect.PRE_STIM_CUE  +  detect.POST_STIM_CUE + detect.RESPONSETIME + detect.ITI); %
+end
+
+curr_sched =   detect.TRIAL_TIMES ; %Shift all the times by the INIT DELAY
+
+%% RECORDING DATA IN THIS TEMPLATE MATRIX
+detect.responses_vector = zeros(detect.nTrials,8); % vector to record conditions 1 session, 2 trial, 3stim time, 4 orientation,5postcue,6intensity, 7 resp, 8 RT, 9 correct
+detect.responses_vector = num2cell(detect.responses_vector);
+% these will be my variables
+detect.responses_vector_variables = {'trial','session','grating_tilt','postcue_tilt','contrast','keypressed','correct','RT'};
+
+[nrows,ncols] = size(detect.responses_vector); % this makes very slow the process. Record the data at the end in txt file
+
+%% setup keyboard basic parameters
+
+KbName('UnifyKeyNames')
+
+%will avoid subject pressing incorrect buttons. It can also improve
+%computer performance
+
+%% Video set up %%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Check script is running on Psychtoolbox-3
+%PsychDebugWi ndowConfiguration % transparent window
+Screen('Preference', 'SkipSyncTests', 1);
+AssertOpenGL;
+%HideCursor;
+% Selects most peripheral screen
+whichScreen = max(Screen('Screens'));
+rect=[0 0 640 480]; % mini-screen.
+%rect=[0 0 320 240]; % mini-screen.
+
+%HideCursor;
+
+% Open graphics window on peripheral screen at certain resolution
+% Our test screen in the lab will have dimensions 1024 x 768, so this is to
+% test the look/feel on that size screen
+[win winRect] = Screen('OpenWindow', whichScreen,[] ) %,,rect wsswwws
+%[win winRect] = Screen('OpenWindow', whichScreen,[]) %,rectx
+% Running on PTB-3? Abort otherwise.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+%% Auditory stimuli %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+ASTIMDUR  = detect.ASTIMDUR; %sec.
+fs = detect.fs; %sampling fq
+% creating the whitenoise
+white_noise = (rand(1,round(ASTIMDUR*fs))*2-1); % LETS create some whitenoise.
+[white_noise] = linramp(white_noise,ASTIMDUR,fs,0.015); % apply ramp on/off
+
+InitializePsychSound;
+% Perform basic initialization of the sound driver:
+nrchannels = 1;
+pahandle = PsychPortAudio('Open', [], [], 1, fs, nrchannels);
+% load memory buffer with stimulus. Ready to fire.
+PsychPortAudio('FillBuffer', pahandle, white_noise);
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+% Initializing some screen basic parameters
+
+[w, h] = RectSize(winRect);
+wMid = w / 2;
+hMid = h / 2;
+
+% Basic color codes
+black = BlackIndex(win);
+white = WhiteIndex(win);
+gray = (black + white) / 2 + 1;
+
+% Taking the absolute value of the difference between white and gray will
+% help keep the grating consistent regardless of whether the CLUT color
+% code for white is less or greater than the CLUT color code for black.
+absoluteDifferenceBetweenWhiteAndGray = abs(white - gray);
+
+percetange_stimuli = 0;
+Creating_stimuli_screen;
+
+% load basic noisy Gabor parameters 
+cfg = detect.cfg
+tilt = pi/180*detect.orientations;
+cfg.gaborang = tilt; % Gabor orientation (rad)
+
+%[patchimg] = make_gabor_noise(cfg)
+
+% precompute signal energy filters
+gaborang = pi/180*(70:1:110); % filter orientations (rad) % calculate only a small part of the spectrum. Then you can calculate the rest from the images.
+gaborang = pi/180*(1); % filter orientations (rad) % calculate only a small part of the spectrum. Then you can calculate the rest from the images.
+
+for j = 1:length(gaborang)
+    cfg_e{j} = get_patch_energy(setfield(cfg,'gaborang',gaborang(j)));
+end
+cfg_x = get_patch_contrast(cfg);
+
+nimages = detect.nTrials; % create as many images as trials
+% Pre-create test images (define in each trial contrast and phase
+% during the loop)
+x = nan(nimages,1); % RMS contrast
+e = nan(nimages,length(gaborang)); % signal energies
+hbar = waitbar(0.0,'making test images...');
+set(get(findobj(hbar,'Type','Axes'),'Title'),'FontSize',16);
+
+% Precreate all the visual stimuli
+for i = 1:nimages
+    if mod(i,5) == 0, waitbar(i/nimages,hbar); end
+    
+    target_definition = detect.stim_combinations(i,1); % selecting if it signal or noise
+    
+    if strcmp(detect.stim_conditions(target_definition),'noise') % 1 is CCW, 2 is CW and 3 is noise
+        cfg.gaborcon = 0; % Gabor Michelson contrast
+    else
+        cfg.gaborcon = contrast; % Gabor Michelson contrast
+    end
+    
+    cfg.gaborphi = rand; % Gabor unit phase (randomize in each trial)
+    % clip patch luminance to [0,1] range to avoid ugly peaks of contrast in the
+    % patch
+      
+    percetange_stimuli = (i/nimages)*100;
+    Creating_stimuli_screen;
+    while true
+        
+        img = make_gabor_noise(cfg);
+        if all(img(:) > 0 & img(:) < 1) % not larger than 1 or 0 which are the rgb limits
+            break
+        end
+    end
+    % get weighted RMS constrast
+    x(i,1) = get_patch_contrast(cfg_x,img);
+    % get signal energies
+    for j = 1:length(gaborang)
+        e(i,j) = get_patch_energy(cfg_e{j},img);
+    end
+    img = (gray * img)/0.5;     % scale to rgb values
+    stimuli(i).img = img; % dont save in the same file, it is to heavy
+    detect.stimuli(i).cfg = cfg;
+end
+close(hbar);
+save([imgFile,rawimg_fname],'stimuli');
+
+
+%saving stimuli energies
+detect.energies = e;
+detect.contrast = x;
+detect.orient_filters = 180*gaborang/pi;
+
+% Display instructions whereas stimuli are created
+Detectinstructions;
+
+% Wait until instructions have been readed
+KbWait(); % press a key to continue with the script
+
+%% Initialize quest parameters 
+%tGuess = 0.1;
+%tGuessSd = 0.075
+
+tGuess = contrast;
+tGuessSd = 0.085;
+
+pThreshold=0.72; % (previous was 0.75 and gamma 0.5)
+beta=3.5;delta=0.01;
+gamma=0.5; % gamma is the proportion correct of responses that are expected when stimulus is not present. slope, threshold and minimum value (it is a 3AFC, noise, 2 x tilt )
+% the quest is designed only to update when there was a signal CW or CCW.
+% Si el sujeto no ve nada, juzgara aleatoriamente, asi que puede acertara
+% el 50% de las veces
+see_quest = 0;
+range = 0.25; % range below and above threshold to be tested
+grain = 0.01;
+q=QuestCreate(tGuess,tGuessSd,pThreshold,beta,delta,gamma,grain,range,see_quest);
+q.normalizePdf=1; % This adds a few ms per call to QuestUpdate, but otherwise the pdf will underflow after about 1000 trials.
+
+tTest=tGuess; % The guess is equal to the contrast in this run -> assign here a fix contrast value and do not update the contrast (but update the quest)
+
+% preparing the quest that runs across different runs
+if (session == 1)
+   % If this is the first run, initialize the intersession quest 
+   q_intersession = q;
+else
+    %If this is not the first run, continue using the quest from the
+    %previous run
+   q_intersession = Experimentalsession(session-1).detect.q_intersession;
+end
+
+% thus q is the quest that it is applied in this run, and q_intersession is
+% the quest across sessions.
+
+
+% POSITION COORDINATES FOR CIRCULAR OBJECTS(FP AND INNER ANNULUS)
+
+color_fp = [255 0 0];
+radious_fp = 20;
+baseRect_fp = [0 0 radious_fp  radious_fp ]; % create a fake box to set the center of ovals
+centeredRect_fp = CenterRectOnPointd(baseRect_fp, w/2, h/2);
+
+radious_center = 50;
+baseRect_center = [0 0 radious_center  radious_center ]; % create a fake box to set the center of ovals
+centeredRect_center = CenterRectOnPointd(baseRect_center, w/2, h/2);
+
+
+% Initialize loop parameters
+iTrial = 0;
+state = 'Initialize';
+exit_loop = 0;
+
+Screen('FillRect', win, gray);    % Gray background
+vbl = Screen('Flip', win);
+ifi = Screen('GetFlipInterval', win);
+
+% use this line to draw and avoid tearing effects ->  vbl = Screen('Flip', win, vbl + 0.5 * ifi);
+
+%tstart = vbl;
+%count_frames = 0;
+
+init_time = GetSecs;
+
+while ~exit_loop % exit the loop when trials are finish
+    
+    % Updating time
+    
+    relative_time = GetSecs;
+    
+    time = relative_time - init_time; % measure absolute elapsed time
+    
+    switch state
+        
+        case 'Initialize'
+            
+            disp(iTrial)
+            
+            if (iTrial  >= detect.nTrials)
+                exit_loop = 1;
+                
+            else % buffer stim and get time for next stimulus presentation
+                
+                iTrial = iTrial + 1;
+                % Trial conditions
+                %  target_definition = detect.stim_combinations(iTrial,1); % select orientation target
+                %  detect.stim_conditions(target_definition);
+                
+                % select pre-postcue combinations and modality/
+                stimulus_definition = detect.stim_combinations(iTrial,1); % select orientation target
+                stimulus_condition = detect.stim_conditions(stimulus_definition);
+                modality_definition = detect.stim_combinations(iTrial,2); %
+                modality_condition = detect.modality_conditions(modality_definition);
+                
+                %  pre_cue_orientation = detect.pre_cue(combination_definition); % select orientation target
+                %  post_cue_orientation = detect.post_cue(combination_definition); % select orientation target
+                
+                
+                % Select trial timings
+                Fixation_point_time = curr_sched(iTrial);
+                
+                Pre_stim_cue_time = curr_sched(iTrial) + detect.FIXATION;
+                Pre_stim_cue_time_off = Pre_stim_cue_time + detect.CUEDUR; % switch off the cue
+                
+                V_stimulus_time = Pre_stim_cue_time + detect.PRE_STIM_CUE; % this is the time where the visual stimulus should be presented in this trial
+                V_stimulus_time_off =  V_stimulus_time + detect.STIMDUR; % this is the time where the visual stimulus should be removel
+                
+                Post_stim_cue_time = V_stimulus_time + detect.POST_STIM_CUE; % after postcue, response should be collected
+                Post_stim_cue_time_off = Post_stim_cue_time + detect.CUEDUR; % switch off the cue
+                
+                
+                Feedback_time = Post_stim_cue_time + detect.RESPONSETIME; % provide feedback about correctness
+                
+                % here draw stimulus and prepare texture (also consider
+                % pre-generate all the textures at the begining). Save the matrix always
+                % for regression analyses
+                
+                % Creating texture
+                gabortex=Screen('MakeTexture', win,   stimuli(iTrial).img); %Texture generated
+                % imagesc(n)
+                texrect = Screen('Rect', gabortex); %Extract information about texture size
+                scale = 1;
+                posx = [w/2];   %coordinates
+                posy = [h/2];
+                poscenter = [w/2, h/2];
+                rotAngles = [0]; % we create the gratings already rotated. This can be applied to textures
+                
+                dstRects = CenterRectOnPoint(texrect*scale , posx, posy);
+                
+                %Initializing flags / We only want the functions to draw
+                %each item one time to avoid delays
+                Vflag = 0;
+                Vprecue = 0;
+                Vpostcue = 0;
+                response = 0;
+                keycode = [];
+                correct = 0;
+                RT = 0;
+                keypressed = 'NoResponse';
+                state = 'Fixationpoint';
+                keyIsDown = 0;
+                
+            end
+            
+        case 'Fixationpoint'
+            if (time >=  Fixation_point_time)
+                % Display fixaxtion point
+                
+                %Screen('TextSize',  win, 30);
+                %DrawFormattedText(win,'+', 'center','center', [240,240,240]);
+                Screen('FillOval', win, color_fp, centeredRect_fp, radious_fp); % new and better centered fixation point
+                vbl = Screen('Flip', win, vbl + 0.5 * ifi);
+                state = 'Precue';
+            end
+            
+            
+        case 'Precue'
+            
+            if (time >=  Pre_stim_cue_time & Vprecue == 0) % DRAW VISUAL CUE
+                
+                % Non attentional relevant
+                %if pre_cue_orientation == 90
+                %   Screen('DrawLine', win, [255,255,255], (w/2)-16, (h/2),(w/2)+16,(h/2), 6);
+                %Screen('FillOval', win, color_fp, centeredRect_fp, radious_fp);
+                % end
+                % Attentional relevant
+                %  if pre_cue_orientation == 45
+                %      Screen('DrawLine', win, [255,255,255], (w/2)-11, (h/2)+11,(w/2)+11,(h/2)-11, 6);
+                %Screen('FillOval', win, color_fp, centeredRect_fp, radious_fp);
+                %  end
+                %  if pre_cue_orientation == 315
+                %     Screen('DrawLine', win, [255,255,255], (w/2)-11, (h/2)-11,(w/2)+11,(h/2)+11, 6);
+                %
+                %  end
+                Screen('FillOval', win, color_fp, centeredRect_fp, radious_fp);
+                vbl = Screen('Flip', win, vbl + 0.5 * ifi);
+                Vprecue = 1;
+            end
+            
+            if (time >=  Pre_stim_cue_time_off) % ERASE VISUAL CUE,RESTORE NORMAL FIXATION AND MOVE TO STIM PLAYING.
+                Screen('TextSize',  win, 30);
+                Screen('FillOval', win, color_fp, centeredRect_fp, radious_fp);
+                vbl = Screen('Flip', win, vbl + 0.5 * ifi);
+                state = 'Play';
+            end
+            
+            
+        case 'Play'
+            
+            if (time >= V_stimulus_time & Vflag == 0) % DISPLAYING VISUAL TARGET
+                
+                Screen('DrawTextures', win, gabortex,[],dstRects,rotAngles); %, 2 is the adaptor surround
+                Screen('TextSize',  win, 30);
+                % Screen('FillOval', win, gray, centeredRect_center, radious_center);
+                Screen('FillOval', win, color_fp, centeredRect_fp, radious_fp);
+                Screen('DrawingFinished', win);
+                Vflag = 1; % Avoiding enter here and redraw the stimulus
+                if strcmp(modality_condition,'AV')
+                    PsychPortAudio('Start', pahandle); % ensure aligment with oscilloscope
+                end
+                vbl = Screen('Flip', win, vbl + 0.5 * ifi);
+            end
+            
+            if (time >= V_stimulus_time_off) % ERASE VISUAL TARGET
+                Screen('FillOval', win, color_fp, centeredRect_fp, radious_fp);
+                vbl = Screen('Flip', win, vbl + 0.5 * ifi);
+                state = 'Postcue';
+                
+            end
+            
+        case 'Postcue'
+            
+            if (time >=  Post_stim_cue_time & Vpostcue == 0) % If both stimuli displayed, move to the next phase
+                
+                %DrawFormattedText(win,cue_sign{post_cue}, 'center','center', [240,240,240]);
+                % if post_cue_orientation == 45
+                %     Screen('DrawLine', win, [255,255,255], (w/2)-11, (h/2)+11,(w/2)+11,(h/2)-11, 6);
+                %     %Screen('FillOval', win, color_fp, centeredRect_fp, radious_fp);
+                %  end
+                %  if post_cue_orientation == 315
+                %      Screen('DrawLine', win, [255,255,255], (w/2)-11, (h/2)-11,(w/2)+11,(h/2)+11, 6);
+                %
+                %   end
+                Screen('FillOval', win, [0,0,255], centeredRect_fp, radious_fp);
+                vbl = Screen('Flip', win, vbl + 0.5 * ifi);
+                Vpostcue = 1;
+            end
+            
+            if (time <=  Feedback_time)
+                
+                % If the user press the key, record the response
+                
+                if ~keyIsDown % only enter if the characters has not been pressed. This allows to capture only one keypress
+                    
+                    [keyIsDown,secs,keycode] = KbCheck;
+                    
+                    % the option below is for mac when you have multiple
+                    % keyboards (you have to specify what one)
+                    % [keyIsDown,secs, keycode]= PsychHID('KbCheck', deviceNumber);
+                    %RestrictKeysForKbCheck([KbName('ESCAPE'), KbName('SPACE'), KbName('UpArrow'),KbName('DownArrow')]); % select a group of keys to press. This
+                    RestrictKeysForKbCheck([KbName('ESCAPE'), KbName('SPACE'), KbName('w'),KbName('s')]); % select a group of keys to press. This
+                    
+                    WaitSecs(0.001); % delay to prevent CPU hogging
+                    
+                    if keyIsDown
+                        % If the user holds down a key, KbCheck will report multiple events.
+                        % To condense multiple 'keyDown' events into a single event, we wait until all
+                        % keys have been released.
+                    %    KbReleaseWait;
+                        response = 1; % responses confirmed
+                        
+                        RT = ( (secs - init_time)) - Post_stim_cue_time;
+                        %disp([(secs - init_time),RT])
+                        
+                        % Note that we use find(keyCode) because keyCode is an array.
+                        % See 'help KbCheck'
+                        keypressed = KbName(keycode);
+                        % DONT FORGET TO REGISTER RTs
+                        % correct or incorrect?
+                        
+                        if (strcmp(stimulus_condition,'signal')  & strcmp( keypressed , 'w') | strcmp(stimulus_condition,'noise')  & strcmp(  keypressed , 's'))
+                            correct = 1;
+                            %disp(tilt);
+                            disp('correct!')
+                        else
+                            correct = 0;
+                            disp('wrong!')
+                        end
+                        
+                        q_intersession = QuestUpdate(q_intersession,tTest,correct);
+                       % display the new contrast estimate
+                        disp(['intersessions new threshold = ', num2str(QuestQuantile(q_intersession))]);
+                        detect.q_intersession = q_intersession; % saving the quest
+                        detect.q_intersession_contrast = QuestQuantile(q_intersession);
+                        
+                        q = QuestUpdate(q,tTest,correct);
+                        disp(['blockwise threshold = ', num2str(QuestQuantile(q))]);
+                        detect.q = q; % saving the quest adn the estimated contrast
+                        detect.q_contrast = QuestQuantile(q);
+                    end
+                    
+                    %disp( keypressed)
+                    
+                    if strcmp(KbName(keycode), 'ESCAPE');
+                        Screen('Closeall')
+                        % closing screen and audio
+                        PsychPortAudio('Close', pahandle)
+                        %break;
+                    end
+                    
+                end
+                
+            end
+            
+            if (time >  Feedback_time)
+                state = 'Feedback';   % jump to the provide feedback phase and records trial information
+                % s 1 session, 2 trial, 3stim time, 4 orientation,5postcue,6intensity, 7 resp, 8 RT, 9 correct
+                detect.responses_vector{iTrial,1} = session;
+                detect.responses_vector{iTrial,2} = iTrial;
+                detect.responses_vector{iTrial,3} = Pre_stim_cue_time; %% record postcue an all timing parameters for the MRI analysis
+                detect.responses_vector{iTrial,4} = V_stimulus_time; %% record postcue an all timing parameters for the MRI analysis
+                detect.responses_vector{iTrial,5} = Post_stim_cue_time; %% record postcue an all timing parameters for the MRI analysis
+                detect.responses_vector{iTrial,6} = char(stimulus_condition);
+                detect.responses_vector{iTrial,7} = char(modality_condition);
+                detect.responses_vector{iTrial,8} = detect.orientations ;
+                detect.responses_vector{iTrial,9} = detect.stimuli(i).cfg.gaborcon; % saving contrast
+                detect.responses_vector{iTrial,10} = keypressed;
+                detect.responses_vector{iTrial,11} = correct;
+                detect.responses_vector{iTrial,12} = RT;
+                detect.responses_vector{iTrial,13} = char(initials);
+                %    Experimentalsession(session).quest = quest;
+                %     save(dataFile,'Experimentalsession');
+                
+                % calculating the proportion of correct responses at this
+                % trial
+                correct_responses = mean([detect.responses_vector{:,11}]);
+
+                disp(['proportion of correct responses = ',num2str(correct_responses)]);
+                
+                dataadaptoutput = [path,'/results/',initials,'_session_',num2str(session),'_AVE_detect.txt'];
+                % printint test data
+                fileID = fopen([dataadaptoutput],'wt'); % try to write on top
+                formatSpec = '%i %i %f %f %f %s %s %f %f %s %i %f %s \r\n';
+                                
+                for row = 1 : nrows
+                    fprintf(fileID, formatSpec, detect.responses_vector{row,:}) ;
+                end
+                
+                fclose(fileID);
+                
+            end
+            
+        case 'Feedback' % after response time passes, provide feedback about response
+            
+            if (time >=  Feedback_time)
+                
+                if response
+                    if correct
+                        color = [0,200 , 0]; % correct
+                    else
+                        color = [255, 0, 0]; % incorrect
+                    end
+                else
+                    color = [255, 255 , 255]; % not response recorded
+                end
+                
+                FeedBack_size = [0, 0, 30, 30];
+                square_rect = CenterRect(FeedBack_size, winRect);
+                % Screen('FillRect',win, color, square_rect);
+                Screen('FrameRect', win, color, square_rect, 2);
+                Screen('FillOval', win, [0,0,255], centeredRect_fp, radious_fp);
+                vbl = Screen('Flip', win, vbl + 0.5 * ifi);
+                
+                state = 'Initialize'; % lets prepare the next trial (going backwards)
+                
+            end
+
+    end
+    
+    %count_frames = count_frames + 1;
+end
+
+% save data in a txt file
+dataadaptoutput = [path, filesep 'results' filesep ,initials,'_session_',num2str(session),'_AVE_detect.txt'];
+% printint test data
+fileID = fopen([dataadaptoutput],'wt'); % try to write on top
+formatSpec = '%i %i %f %f %f %s %s %f %f %s %i %f %s \r\n';
+
+% for windows
+%dataadaptoutput = [path,'\results\',initials,'_detect.txt'];
+
+for row = 1 : nrows
+    fprintf(fileID, formatSpec, detect.responses_vector{row,:}) ;
+end
+
+fclose(fileID);
+
+
+Experimentalsession(session).detect = detect;
+save(dataFile,'Experimentalsession');
+
+
+toc
+Questfinish;
+KbWait();
+Screen('Closeall')
+% closing screen and audio
+PsychPortAudio('Close', pahandle)
+
+end
+
+%fprintf('%5.2f	%4.1f	%5.2f\n',tActual,q.beta,q.gamma);
