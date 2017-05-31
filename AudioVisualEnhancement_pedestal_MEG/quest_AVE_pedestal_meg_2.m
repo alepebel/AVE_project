@@ -387,7 +387,7 @@ centeredRect_calibration_cue = CenterRectOnPointd(baseRect_calibration_cue, w/2,
 
 % Opening file to save data
    
- dataadaptoutput = [path, filesep 'results',filesep initials,'_session_',num2str(session),'_AVE_pedestal_meg_quest.txt'];
+dataadaptoutput = [path, filesep 'results',filesep initials,'_session_',num2str(session),'_AVE_pedestal_meg_quest.txt'];
 
 
 %% Preparing threat... Initialize loop parameters
@@ -801,13 +801,12 @@ while ~exit_loop % exit the loop when trials are finish
                             % DONT FORGET TO REGISTER RTs
                             %disp(keypressed)
                             %% Recoding button/key presses to response option
-                            if (strcmp( keypressed , 'y') |  triggerpressed == 98 )
+                            if (strcmp( keypressed , 'y') |  triggerpressed == 98 |  triggerpressed == 66)
                                 response_given =  response_options(1);% In this code, Y is left
                             end
-                            if (strcmp( keypressed , 'u') | triggerpressed == 99)
+                            if (strcmp( keypressed , 'u') | triggerpressed == 99 |  triggerpressed == 67)
                                 response_given =  response_options(2);% In this code, U is right (you can use button box commands)
-                            end
-                            
+                            end                          
 
                             disp (quest.visual_presentation(target_space))
                             %% Cheking if the response is correct for the oddball task or visual question task
@@ -836,7 +835,7 @@ while ~exit_loop % exit the loop when trials are finish
                             
                         
                         if strcmp(procedure, 'detection')
-                            if (strcmp(stimulus_condition,'signal') & triggerpressed > 70) % only update quest for signal trials
+                            if (strcmp(stimulus_condition,'signal')) % only update quest for signal trials
                                                  
                                 if( strcmp(quest.visual_presentation(target_space),'center'))
                                     
@@ -943,9 +942,9 @@ while ~exit_loop % exit the loop when trials are finish
                     color = [255, 255 , 255]; % not response recorded
                 end
                 
-                Screen('TextSize',  win, 2*ppd);
-                keypressedis = ['triggerpress ', num2str(triggerpressed) ];
-                DrawFormattedText(win, keypressedis , 'center', hMid-100, [200,0,0], max_n_ofcharperline,0,0);
+          %      Screen('TextSize',  win, 2*ppd);
+           %     keypressedis = ['triggerpress ', num2str(triggerpressed) ];
+          %      DrawFormattedText(win, keypressedis , 'center', hMid-100, [200,0,0], max_n_ofcharperline,0,0);
                 
                 Screen('FillOval', win,  color, centeredRect_fp, radious_fp);                
                 Screen('Flip', win);                
