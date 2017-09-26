@@ -239,34 +239,34 @@ HideCursor;
 
 % Running on PTB-3? Abort otherwise.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-%% Auditory stimuli %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-ASTIMDUR  = quest.ASTIMDUR; %sec.
-fs = quest.fs; %sampling fq
-% creating the whitenoise
-white_noise = (rand(1,round(ASTIMDUR*fs))*2-1); % LETS create some whitenoise.
-[white_noise] = linramp(white_noise,ASTIMDUR,fs,0.015); % apply ramp on/off
-
-% create a warning beep (beeper works very bad so I create my own
-% stimulus
-freq = 1000; % hz
-beep_noise = sin(linspace(0, ASTIMDUR *freq*2*pi, round(ASTIMDUR*fs))); 
-[beep_noise] = linramp(beep_noise,ASTIMDUR,fs,0.005); % apply ramp on/of
-AVdelay = -0.02; % negative values sound before the visual, postive values after
-quest.AVdelay = AVdelay;
-InitializePsychSound;
-% Perform basic initialization of the sound driver:
-nrchannels = 1;
-
-devices = PsychPortAudio('GetDevices')
-audiodevice = 6;
-pahandle   =  PsychPortAudio('Open',audiodevice, [], 1, fs, nrchannels);
-beephandle =  PsychPortAudio('Open',audiodevice, [], 1, fs, nrchannels);
-
-% load memory buffers with auditory stimulus. Ready to fire!.
-PsychPortAudio('FillBuffer', pahandle, white_noise); % Auditory stimulus
-PsychPortAudio('FillBuffer',beephandle, beep_noise); % warning signal
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% 
+% %% Auditory stimuli %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% ASTIMDUR  = quest.ASTIMDUR; %sec.
+% fs = quest.fs; %sampling fq
+% % creating the whitenoise
+% white_noise = (rand(1,round(ASTIMDUR*fs))*2-1); % LETS create some whitenoise.
+% [white_noise] = linramp(white_noise,ASTIMDUR,fs,0.015); % apply ramp on/off
+% 
+% % create a warning beep (beeper works very bad so I create my own
+% % stimulus
+% freq = 1000; % hz
+% beep_noise = sin(linspace(0, ASTIMDUR *freq*2*pi, round(ASTIMDUR*fs))); 
+% [beep_noise] = linramp(beep_noise,ASTIMDUR,fs,0.005); % apply ramp on/of
+% AVdelay = -0.02; % negative values sound before the visual, postive values after
+% quest.AVdelay = AVdelay;
+% InitializePsychSound;
+% % Perform basic initialization of the sound driver:
+% nrchannels = 1;
+% 
+% devices = PsychPortAudio('GetDevices')
+% audiodevice = 6;
+% pahandle   =  PsychPortAudio('Open',audiodevice, [], 1, fs, nrchannels);
+% beephandle =  PsychPortAudio('Open',audiodevice, [], 1, fs, nrchannels);
+% 
+% % load memory buffers with auditory stimulus. Ready to fire!.
+% PsychPortAudio('FillBuffer', pahandle, white_noise); % Auditory stimulus
+% PsychPortAudio('FillBuffer',beephandle, beep_noise); % warning signal
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
 % Initializing some screen basic parameters
@@ -387,7 +387,7 @@ centeredRect_calibration_cue = CenterRectOnPointd(baseRect_calibration_cue, w/2,
 
 % Opening file to save data
    
- dataadaptoutput = [path, filesep 'results',filesep initials,'_session_',num2str(session),'_AVE_pedestal_meg_quest.txt'];
+dataadaptoutput = [path, filesep 'results',filesep initials,'_session_',num2str(session),'_AVE_pedestal_meg_quest.txt'];
 
 
 %% Preparing threat... Initialize loop parameters
@@ -801,13 +801,12 @@ while ~exit_loop % exit the loop when trials are finish
                             % DONT FORGET TO REGISTER RTs
                             %disp(keypressed)
                             %% Recoding button/key presses to response option
-                            if (strcmp( keypressed , 'y') |  triggerpressed == 98 )
+                            if (strcmp( keypressed , 'y') |  triggerpressed == 98 |  triggerpressed == 66)
                                 response_given =  response_options(1);% In this code, Y is left
                             end
-                            if (strcmp( keypressed , 'u') | triggerpressed == 99)
+                            if (strcmp( keypressed , 'u') | triggerpressed == 99 |  triggerpressed == 67)
                                 response_given =  response_options(2);% In this code, U is right (you can use button box commands)
-                            end
-                            
+                            end                          
 
                             disp (quest.visual_presentation(target_space))
                             %% Cheking if the response is correct for the oddball task or visual question task
@@ -836,7 +835,7 @@ while ~exit_loop % exit the loop when trials are finish
                             
                         
                         if strcmp(procedure, 'detection')
-                            if (strcmp(stimulus_condition,'signal') & triggerpressed > 70) % only update quest for signal trials
+                            if (strcmp(stimulus_condition,'signal')) % only update quest for signal trials
                                                  
                                 if( strcmp(quest.visual_presentation(target_space),'center'))
                                     
@@ -868,8 +867,8 @@ while ~exit_loop % exit the loop when trials are finish
                     if strcmp(KbName(keycode), 'ESCAPE');
                         Screen('Closeall')
                         % closing screen and audio
-                        PsychPortAudio('Close', pahandle)
-                        PsychPortAudio('Close', beephandle)
+                     %   PsychPortAudio('Close', pahandle)
+                     %  PsychPortAudio('Close', beephandle)
                         %break;
                     end
                     
@@ -943,9 +942,9 @@ while ~exit_loop % exit the loop when trials are finish
                     color = [255, 255 , 255]; % not response recorded
                 end
                 
-                Screen('TextSize',  win, 2*ppd);
-                keypressedis = ['triggerpress ', num2str(triggerpressed) ];
-                DrawFormattedText(win, keypressedis , 'center', hMid-100, [200,0,0], max_n_ofcharperline,0,0);
+          %      Screen('TextSize',  win, 2*ppd);
+           %     keypressedis = ['triggerpress ', num2str(triggerpressed) ];
+          %      DrawFormattedText(win, keypressedis , 'center', hMid-100, [200,0,0], max_n_ofcharperline,0,0);
                 
                 Screen('FillOval', win,  color, centeredRect_fp, radious_fp);                
                 Screen('Flip', win);                
@@ -959,12 +958,12 @@ while ~exit_loop % exit the loop when trials are finish
     
     % Sound is played independently of the visual stimulus
     
-    if (time >= (TRIAL_TARGET_2PED + AVdelay) & strcmp(modality_condition,'AV') & Aflag == 0) % DISPLAYING SOUND
-        % PsychPortAudio('Start', pahandle); % ensure aligment with oscilloscope - AVdelay variable
-        PsychPortAudio('Start', beephandle); % ensure aligment with oscilloscope - AVdelay variable        
-        Aflag = 1;
-    end
-    
+%     if (time >= (TRIAL_TARGET_2PED + AVdelay) & strcmp(modality_condition,'AV') & Aflag == 0) % DISPLAYING SOUND
+%         % PsychPortAudio('Start', pahandle); % ensure aligment with oscilloscope - AVdelay variable
+%         PsychPortAudio('Start', beephandle); % ensure aligment with oscilloscope - AVdelay variable        
+%         Aflag = 1;
+%     end
+%     
 end
 
   
@@ -1020,8 +1019,8 @@ Blockfinish;
 
 Screen('Closeall')
 % closing screen and audio
-PsychPortAudio('Close', pahandle)
-PsychPortAudio('Close',beephandle)
+%PsychPortAudio('Close', pahandle)
+%PsychPortAudio('Close',beephandle)
 
 end
 %fprintf('%5.2f	%4.1f	%5.2f\n',tActual,q.beta,q.gamma);

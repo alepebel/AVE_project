@@ -1,0 +1,8 @@
+% Make this a Matlab script!!!
+
+[Tm Tdb] = REGONS_sensation_level();
+SL = 50;	% This is how many dB above "hearing level" you want... 50 is good and corresponds to somewhere in the 65-70dB SPL ballpark
+[~,~,m] = db2ratio(Tdb+SL);
+if m > 1
+    error('Sound cannot be scaled by a factor greater than 1!')
+end
