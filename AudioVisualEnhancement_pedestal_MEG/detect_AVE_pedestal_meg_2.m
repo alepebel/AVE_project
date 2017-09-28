@@ -179,8 +179,7 @@ end
 reps =  12;
 
 if strcmp(task, 'demo')
-    reps =  2;
-    
+    reps =  2;    
 end
 
 %detect.orientations = [90]; % degrees of possible gabor pathces
@@ -307,14 +306,21 @@ white_noise = (rand(1,round(ASTIMDUR*fs))*2-1); % LETS create some whitenoise.
 freq = 1000; % hz
 beep_noise = sin(linspace(0, ASTIMDUR *freq*2*pi, round(ASTIMDUR*fs)));
 [beep_noise] = linramp(beep_noise,ASTIMDUR,fs,0.005); % apply ramp on/of
-AVdelay = -0.0; % negative values sound before the visual, postive values after (here in MEG should be 0.01 ms to have synchrony, in cubicule I used 0.08)
+[beep_noise] = [beep_noise ; beep_noise];
+AVdelay = -0.01; % negative values sound before the visual, postive values after (here in MEG should be 0.01 ms to have synchrony, in cubicule I used 0.08)
 detect.AVdelay = AVdelay;
 
 InitializePsychSound;
-% Perform basic initialization of the sound driver:
-nrchannels = 1;
+% Perform basic initialization of the sound driver: 
+%% In "fucking" MEG using ASIO card, you need to create two channels, otherwise the sound will
+% only appear in one ear.
+
+nrchannels = 2;
 
 devices = PsychPortAudio('GetDevices')
+% If you are on windows and you are not using an ASIO card, timing in PTB
+% is very bad (100ms to 500ms error). With ASIO card is much better (always
+% check this and select the correct device in each computer)
 audiodevice = 8;
 % pahandle   =  PsychPortAudio('Open',audiodevice, [], 1, fs, nrchannels);
 beephandle =  PsychPortAudio('Open',audiodevice, [], 1, fs, nrchannels);
