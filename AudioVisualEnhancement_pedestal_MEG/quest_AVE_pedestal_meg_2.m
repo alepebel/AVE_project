@@ -1,6 +1,6 @@
 function quest_AVE()
 
-%% Alexis Pérez Bellido 20-5-2017
+%% Alexis PÃ©rez Bellido 20-5-2017
 % this function run 2 possible task, although is specifically designed for QUEST and visual detection: 1 task is a
 % visual grating detection task, where the participants have to detect visual
 % grating. 2 task is a oddball counting task, where the participants have
@@ -917,8 +917,8 @@ while ~exit_loop % exit the loop when trials are finish
                     disp(['proportion of correct responses center = ',num2str(correct_center_responses)]);
                     disp(['proportion of correct responses surround = ',num2str(correct_surround_responses)]);
                     
-                     disp(['intersessions center new threshold = ', num2str(QuestQuantile(q_center_intersession))]);
-                     disp(['intersessions surround new threshold = ', num2str(QuestQuantile(q_surround_intersession))]);
+                     disp(['intersessions center new threshold = ', num2str(QuestMean(q_center_intersession))]);
+                     disp(['intersessions surround new threshold = ', num2str(QuestMean(q_surround_intersession))]);
                     % printint test data Do not save in the experiment. Slows
 %% CONSIDER COMMENTING THIS BELOW
                     fileID = fopen([dataadaptoutput],'wt'); % try to write on top
